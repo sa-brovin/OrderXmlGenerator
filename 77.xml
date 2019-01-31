@@ -1,0 +1,54 @@
+<SOAP:Envelope
+	xmlns:SOAP='http://schemas.xmlsoap.org/soap/envelope/'>
+	<SOAP:Header/>
+	<SOAP:Body>
+		<ProductionOrderRequest
+			xmlns:prx='urn:sap.com:proxy:EPR:/1SAI/TAS6CA1BE8F0794C74DF05D:731'>
+			<HeaderSection>
+				<UUID>005056a3-4a39-1ed9-87f7-55523a9e7b82</UUID>
+				<Sender>KSAUPKK_ERP</Sender>
+				<Recipients>SUIKP</Recipients>
+				<CreationDateTime>2019-01-30T09:32:18Z</CreationDateTime>
+			</HeaderSection>
+			<DataSection>
+				<Item>
+					<AUFNR>001010177777</AUFNR>
+					<AUART>P101</AUART>
+					<GSTRS>2019-01-31</GSTRS>
+					<GLTRS>2019-01-31</GLTRS>
+					<WERKS>0101</WERKS>
+					<FEVOR>011</FEVOR>
+					<LGORT>1011</LGORT>
+
+					<PLNBEZ>000000136400903001</PLNBEZ>
+					<MATXT>ИЖ-164.Сб-03 Оружие списанное охолощенное снайперская винтовка Драгунова ОС СВД,исп.03 на базе СВДМ</MATXT>
+					<HF_DSE_NAME>Оружие списанное охолощенное снайперская винтовка Драгунова ОС СВД,исп.03 на базе СВДМ</HF_DSE_NAME>
+					<HF_DSE_KTD>ИЖ-164.Сб-03</HF_DSE_KTD>
+					<HF_DSE_NAME_H>10101, 01, 0</HF_DSE_NAME_H>
+					<BMENGE>1927.0</BMENGE>
+					<BMEINS>ST</BMEINS>
+					<IGMNG>0.0</IGMNG>
+					<APRIO/>
+					<KDAUF/>
+					<KDPOS>0</KDPOS>
+
+
+					<E1AFPOL>
+						<VERID>ZA01</VERID>
+					</E1AFPOL>
+					<E1JSTKL>
+						<STAT>I0002</STAT>
+					</E1JSTKL>
+					<E1AFVOL>
+						<VORNR>0082</VORNR>
+						<LTXA1>Вертикально-сверлильная</LTXA1>
+						<ARBID>10102005</ARBID>
+						<MGVRG>1927.0</MGVRG>
+						<MEINH>ST</MEINH>
+						<LMNGA>0.0</LMNGA>
+					</E1AFVOL>
+				</Item>
+			</DataSection>
+		</ProductionOrderRequest>
+	</SOAP:Body>
+</SOAP:Envelope>
