@@ -4,19 +4,19 @@ import uuid as u
 import paramiko
 from lxml import etree, objectify
 from random import randint
-
 import jpype
 import jaydebeapi
+from scp import SCPClient
 
 c_server = "192.168.111.32"
 c_port = 22
 c_user = "abrovin"
-c_password = ""
-c_order_file_name = "Order_%s.xml" % datetime.datetime.now().isoformat()
-c_exchange_folder = "/var/lib/aks-adapter-sap/exchange/soap"
+c_password = "f4f247nwc!"
+
+c_exchange_folder = "/var/lib/aks-adapter-sap/exchange/soap/in"
 
 
-def db_connect():
+def exec_script():
     jHome = jpype.getDefaultJVMPath()
     jpype.startJVM(jHome, '-Djava.class.path=ojdbc8.jar')
     conn = jaydebeapi.connect('oracle.jdbc.driver.OracleDriver',
@@ -25,34 +25,33 @@ def db_connect():
 
     curs.execute(
         '''select 
-    fsd.machine_model_id, fsd.machine_model_ext_id,
-    d.ext_id as department_extId,
-    oc.ext_id as oc_Ext_id,
-    pu.name as component_full_name,
-    pu.plain_name as component_name,
-    pu.code as component_code,
-    oc.stage as component_stage, 
-    fsd.operation_number as operation_extId,
-    op.name as operation_name,
-    fs.route_code as routeCode
-   
-   -- count(1)
-from 
-    AKS_ORDER_PROD.flow_sheet_detail fsd 
-    inner join AKS_ORDER_PROD.flow_sheet fs on fsd.flow_sheet_id = fs.id 
-    inner join AKS_ORDER_PROD.order_component oc on fs.order_component_id = oc.id
-    inner join AKS_ORDER_PROD.order_operation op on fsd.order_operation_id = op.id
-    inner join AKS_ORDER_PROD.product_unit pu on pu.id = oc.product_unit_id
-    inner join AKS_ADAPTER_SAP.department d on d.id = 1
-where 
-    fs.department_id = 1 and
-    fs.has_tool_operations = 1 and
-    fsd.machine_model_id is not null'''
-    )
-    curs.fetchall()
-    # [(1, u'John')]
+            fsd.machine_model_id, fsd.machine_model_ext_id,
+            d.ext_id as department_extId,
+            oc.ext_id as oc_Ext_id,
+            pu.name as component_full_name,
+            pu.plain_name as component_name,
+            pu.code as component_code,
+            oc.stage as component_stage, 
+            fsd.operation_number as operation_extId,
+            op.name as operation_name,
+            fs.route_code as routeCode
+        from 
+            AKS_ORDER_PROD.flow_sheet_detail fsd 
+            inner join AKS_ORDER_PROD.flow_sheet fs on fsd.flow_sheet_id = fs.id 
+            inner join AKS_ORDER_PROD.order_component oc on fs.order_component_id = oc.id
+            inner join AKS_ORDER_PROD.order_operation op on fsd.order_operation_id = op.id
+            inner join AKS_ORDER_PROD.product_unit pu on pu.id = oc.product_unit_id
+            inner join AKS_ADAPTER_SAP.department d on d.id = 1
+        where 
+            fs.department_id = 1 and
+            fs.has_tool_operations = 1 and
+            fsd.machine_model_id is not null''')
+    res = curs.fetchall()
     curs.close()
     conn.close()
+    print("Data received from DB.")
+    return res
+
 
 def create_ssh_client(server, port, user, password):
     client = paramiko.SSHClient()
@@ -99,7 +98,7 @@ def create_appt(data):
     appt.MATXT = data["MATXT"]
     appt.HF_DSE_NAME = data["HF_DSE_NAME"]
     appt.HF_DSE_KTD = data["HF_DSE_KTD"]
-    appt.HF_DSE_NAME_H = data["HF_DSE_NAME_H"]
+    # appt.HF_DSE_NAME_H = data["HF_DSE_NAME_H"]
     appt.BMENGE = data["BMENGE"]
     appt.BMEINS = data["BMEINS"]
     appt.IGMNG = data["IGMNG"]
@@ -110,12 +109,14 @@ def create_appt(data):
 # endregion
 
 
-def create_xml():
+def create_xml(p_component_id, p_full_name, p_plain_name, p_code, p_stage, p_verid, p_operation_code, p_operation_name,
+               p_tool_ext_id):
     # Создаем XML файл.
     xml = '''<SOAP:Envelope xmlns:SOAP='http://schemas.xmlsoap.org/soap/envelope/'>
         <SOAP:Header/>
         <SOAP:Body>
-        <ProductionOrderRequest xmlns:prx='urn:sap.com:proxy:EPR:/1SAI/TAS6CA1BE8F0794C74DF05D:731'>
+        <ProductionOrderRequest 
+        xmlns:prx='urn:sap.com:proxy:EPR:/1SAI/TAS6CA1BE8F0794C74DF05D:731'>
         <HeaderSection>
         <UUID>{0}</UUID>
         <Sender>KSAUPKK_ERP</Sender>
@@ -133,21 +134,10 @@ def create_xml():
     nav = root.find(".//DataSection")
 
     # заполнение данных
-    order_name = "I_{0}_{1}".format(datetime.datetime.now().strftime("%Y-%m-%d"), randint(1, 1000))
+    order_name = "T{0}-{1}".format(datetime.datetime.now().strftime("%y%m%d"), randint(1, 999))
     manufacture = 101
     # sector = '01'
     sector_hex = "{0:x}".format(1)
-
-    component_id = "component_id"
-    full_name = "full_name"
-    plain_name = "plain_name"
-    code = "code"
-    stage = "stage"
-    verid = "verid"
-
-    operation_code = "operation_code"
-    operation_name = "operation_name"
-    tool_ext_id = "tool_ext_id"
     amount = 777
 
     item = create_appt({
@@ -157,11 +147,11 @@ def create_xml():
         "GLTRS": datetime.datetime.now().strftime("%Y-%m-%d"),
         "LGORT": "{0}{1}".format(manufacture, sector_hex),
 
-        "PLNBEZ": component_id,
-        "MATXT": full_name,
-        "HF_DSE_NAME": plain_name,
-        "HF_DSE_KTD": code,
-        "HF_DSE_NAME_H": stage,
+        "PLNBEZ": p_component_id,
+        "MATXT": p_full_name,
+        "HF_DSE_NAME": p_plain_name,
+        "HF_DSE_KTD": p_code,
+        "HF_DSE_NAME_H": p_stage,
         "BMENGE": amount,
         "BMEINS": "ST",
         "IGMNG": "0.0",
@@ -170,7 +160,7 @@ def create_xml():
     nav.append(item)
 
     # вариант изготовления ДСЕ
-    eiafpol = create_e1afpol({"VERID": verid})
+    eiafpol = create_e1afpol({"VERID": p_verid})
     nav = root.find(".//APRIO")
     nav.addnext(eiafpol)
 
@@ -181,9 +171,9 @@ def create_xml():
 
     # операция по заказу
     e1afvol = create_e1afvol({
-        "VORNR": operation_code,
-        "LTXA1": operation_name,
-        "ARBID": tool_ext_id,
+        "VORNR": p_operation_code,
+        "LTXA1": p_operation_name,
+        "ARBID": p_tool_ext_id,
         "MGVRG": amount,
         "MEINH": "ST",
         "LMNGA": "0.0",
@@ -194,32 +184,64 @@ def create_xml():
 
     # удаляем все lxml аннотации.
     objectify.deannotate(root)
-    etree.cleanup_namespaces(root)
 
+    # удаляем лишние неимспеисы.
+    nav = root.find(".//Item")
+    etree.cleanup_namespaces(nav)
     obj_xml = etree.tostring(root,
                              encoding="UTF-8",
                              pretty_print=True,
-                             xml_declaration=True
-                             )
+                             xml_declaration=True)
 
+    order_file_name = "Order_%s.xml" % datetime.datetime.now().isoformat()
     try:
-        with open(c_order_file_name, "wb") as xml_writer:
+        with open(order_file_name, "wb") as xml_writer:
             xml_writer.write(obj_xml)
     except IOError:
         pass
+    print("XML file {0} created".format(order_file_name))
 
-    # копирование файла в директорию aks-sap-adapter для обмена
-    # ssh = create_ssh_client(c_server, c_port, c_user, c_password)
-    # scp = SCPClient(ssh.get_transport())
-    # scp.put(c_order_file_name, c_exchange_folder, False)
+    return order_file_name
 
 
-def main():
-    create_xml()
+# копирование файла в директорию aks-sap-adapter для обмена
+def copy_to_server(order_file_name):
+    ssh = create_ssh_client(c_server, c_port, c_user, c_password)
+    scp = SCPClient(ssh.get_transport())
+    scp.put(order_file_name, c_exchange_folder, False)
+    print("{0} was copied".format(file_name))
+
+
+# def main():
+#    create_xml()
 
 
 if __name__ == '__main__':
-    # main()
-    db_connect()
+    # Получить данные из БД.
+    items = exec_script()
 
-# print(xml)
+    # Сгенерировать xml для полученных данных.
+    # for i in items:
+    j = 0
+    while j < 15 or len(items) >= j:
+        i = items[j]
+        j = j + 1
+        tool_ext_id = i[1]
+        component_id = i[3]
+        full_name = i[4]
+        plain_name = i[5]
+        code = i[6]
+        if i[7] == "None":
+            stage = ""
+        else:
+            stage = i[7]
+        operation_code = i[8]
+        operation_name = i[9]
+        verid = i[10]
+        print(i)
+        file_name = create_xml(component_id, full_name, plain_name, code, stage, verid, operation_code, operation_name,
+                               tool_ext_id)
+
+    # скопировать xml на сервер.
+    #copy_to_server(file_name)
+# todo: добавить возможность выбора цеха и сектора.
