@@ -5,6 +5,9 @@ import paramiko
 from lxml import etree, objectify
 from random import randint
 
+import jpype
+import jaydebeapi
+
 c_server = "192.168.111.32"
 c_port = 22
 c_user = "abrovin"
@@ -12,6 +15,44 @@ c_password = "f4f247nwc!"
 c_order_file_name = "Order_%s.xml" % datetime.datetime.now().isoformat()
 c_exchange_folder = "/var/lib/aks-adapter-sap/exchange/soap"
 
+
+def db_connect():
+    jHome = jpype.getDefaultJVMPath()
+    jpype.startJVM(jHome, '-Djava.class.path=ojdbc8.jar')
+    conn = jaydebeapi.connect('oracle.jdbc.driver.OracleDriver',
+                              'jdbc:oracle:thin:system/oracle@autotesting.bs.local:1521:xe')
+    curs = conn.cursor()
+
+    curs.execute(
+        '''select 
+    fsd.machine_model_id, fsd.machine_model_ext_id,
+    d.ext_id as department_extId,
+    oc.ext_id as oc_Ext_id,
+    pu.name as component_full_name,
+    pu.plain_name as component_name,
+    pu.code as component_code,
+    oc.stage as component_stage, 
+    fsd.operation_number as operation_extId,
+    op.name as operation_name,
+    fs.route_code as routeCode
+   
+   -- count(1)
+from 
+    AKS_ORDER_PROD.flow_sheet_detail fsd 
+    inner join AKS_ORDER_PROD.flow_sheet fs on fsd.flow_sheet_id = fs.id 
+    inner join AKS_ORDER_PROD.order_component oc on fs.order_component_id = oc.id
+    inner join AKS_ORDER_PROD.order_operation op on fsd.order_operation_id = op.id
+    inner join AKS_ORDER_PROD.product_unit pu on pu.id = oc.product_unit_id
+    inner join AKS_ADAPTER_SAP.department d on d.id = 1
+where 
+    fs.department_id = 1 and
+    fs.has_tool_operations = 1 and
+    fsd.machine_model_id is not null'''
+    )
+    curs.fetchall()
+    # [(1, u'John')]
+    curs.close()
+    conn.close()
 
 def create_ssh_client(server, port, user, password):
     client = paramiko.SSHClient()
@@ -178,6 +219,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    db_connect()
 
 # print(xml)
