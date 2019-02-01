@@ -12,17 +12,20 @@ c_server = "192.168.111.32"
 c_port = 22
 c_user = "abrovin"
 c_password = "f4f247nwc!"
-
+c_amount = 777
+c_manufacture = 101
+c_sector = "01"
 c_exchange_folder = "/var/lib/aks-adapter-sap/exchange/soap/in"
 
 
 def exec_script():
-    jHome = jpype.getDefaultJVMPath()
-    jpype.startJVM(jHome, '-Djava.class.path=ojdbc8.jar')
+    j_home = jpype.getDefaultJVMPath()
+    jpype.startJVM(j_home, '-Djava.class.path=ojdbc8.jar')
     conn = jaydebeapi.connect('oracle.jdbc.driver.OracleDriver',
                               'jdbc:oracle:thin:system/oracle@autotesting.bs.local:1521:xe')
     curs = conn.cursor()
 
+    # todo: сделать конфигурирование департамента
     curs.execute(
         '''select 
             fsd.machine_model_id, fsd.machine_model_ext_id,
@@ -135,24 +138,21 @@ def create_xml(p_component_id, p_full_name, p_plain_name, p_code, p_stage, p_ver
 
     # заполнение данных
     order_name = "T{0}-{1}".format(datetime.datetime.now().strftime("%y%m%d"), randint(1, 999))
-    manufacture = 101
-    # sector = '01'
-    sector_hex = "{0:x}".format(1)
-    amount = 777
+    sector_hex = "{0:x}".format(int(c_sector))
 
     item = create_appt({
         "AUFNR": order_name,
-        "AUART": "P%s" % manufacture,
+        "AUART": "P%s" % c_manufacture,
         "GSTRS": datetime.datetime.now().strftime("%Y-%m-%d"),
         "GLTRS": datetime.datetime.now().strftime("%Y-%m-%d"),
-        "LGORT": "{0}{1}".format(manufacture, sector_hex),
+        "LGORT": "{0}{1}".format(c_manufacture, sector_hex),
 
         "PLNBEZ": p_component_id,
         "MATXT": p_full_name,
         "HF_DSE_NAME": p_plain_name,
         "HF_DSE_KTD": p_code,
         "HF_DSE_NAME_H": p_stage,
-        "BMENGE": amount,
+        "BMENGE": c_amount,
         "BMEINS": "ST",
         "IGMNG": "0.0",
         "APRIO": "",
@@ -174,7 +174,7 @@ def create_xml(p_component_id, p_full_name, p_plain_name, p_code, p_stage, p_ver
         "VORNR": p_operation_code,
         "LTXA1": p_operation_name,
         "ARBID": p_tool_ext_id,
-        "MGVRG": amount,
+        "MGVRG": c_amount,
         "MEINH": "ST",
         "LMNGA": "0.0",
 
@@ -209,21 +209,16 @@ def copy_to_server(order_file_name):
     ssh = create_ssh_client(c_server, c_port, c_user, c_password)
     scp = SCPClient(ssh.get_transport())
     scp.put(order_file_name, c_exchange_folder, False)
-    print("{0} was copied".format(file_name))
+    print("{0} was copied".format(order_file_name))
 
 
-# def main():
-#    create_xml()
-
-
-if __name__ == '__main__':
+def main():
     # Получить данные из БД.
     items = exec_script()
 
     # Сгенерировать xml для полученных данных.
-    # for i in items:
     j = 0
-    while j < 15 or len(items) >= j:
+    while j < 15 and len(items) > j:
         i = items[j]
         j = j + 1
         tool_ext_id = i[1]
@@ -242,6 +237,10 @@ if __name__ == '__main__':
         file_name = create_xml(component_id, full_name, plain_name, code, stage, verid, operation_code, operation_name,
                                tool_ext_id)
 
-    # скопировать xml на сервер.
-    #copy_to_server(file_name)
+        # скопировать xml на сервер.
+        copy_to_server(file_name)
 # todo: добавить возможность выбора цеха и сектора.
+
+
+if __name__ == '__main__':
+    main()
