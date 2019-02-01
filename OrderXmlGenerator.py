@@ -11,7 +11,7 @@ import jaydebeapi
 c_server = "192.168.111.32"
 c_port = 22
 c_user = "abrovin"
-c_password = "f4f247nwc!"
+c_password = ""
 c_order_file_name = "Order_%s.xml" % datetime.datetime.now().isoformat()
 c_exchange_folder = "/var/lib/aks-adapter-sap/exchange/soap"
 
