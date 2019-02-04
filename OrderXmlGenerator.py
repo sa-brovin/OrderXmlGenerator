@@ -238,7 +238,7 @@ def main():
                                tool_ext_id)
 
         # скопировать xml на сервер.
-        copy_to_server(file_name)
+        #copy_to_server(file_name)
 # todo: добавить возможность выбора цеха и сектора.
 
 
